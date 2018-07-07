@@ -63,9 +63,10 @@ module Hocho
         ec2.describe_instances(filters: filters).flat_map do |page|
           page.reservations.flat_map do |reservation|
             reservation.instances.map do |instance|
+              next if instance.state.name == 'terminated' || instance.state.name == 'terminating'
               vpc = vpcs[instance.vpc_id]
               fetch_instance(instance, vpc)
-            end
+            end.compact
           end
         end
       end
