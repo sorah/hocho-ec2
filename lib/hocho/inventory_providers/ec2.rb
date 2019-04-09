@@ -60,12 +60,18 @@ module Hocho
             [vpc.vpc_id, vpc]
           end
         end.to_h
+        subnets= ec2.describe_subnets().flat_map do |page|
+          page.subnets.map do |subnet|
+            [subnet.subnet_id, subnet]
+          end
+        end.to_h
         ec2.describe_instances(filters: filters).flat_map do |page|
           page.reservations.flat_map do |reservation|
             reservation.instances.map do |instance|
               next if instance.state.name == 'terminated' || instance.state.name == 'terminating'
               vpc = vpcs[instance.vpc_id]
-              fetch_instance(instance, vpc)
+              subnet = subnets[instance.subnet_id]
+              fetch_instance(instance, vpc, subnet)
             end.compact
           end
         end
@@ -105,11 +111,12 @@ module Hocho
 
       private
 
-      def fetch_instance(instance, vpc)
+      def fetch_instance(instance, vpc, subnet)
         tags = {
           'ec2.instance-id' => instance.instance_id,
           'ec2.iam-instance-profile' => instance.iam_instance_profile,
           'ec2.vpc-id' => instance.vpc_id,
+          'ec2.subnet-id' => instance.subnet_id,
         }
         {'vpc-tags' => vpc.tags, 'tags' => instance.tags}.each do |prefix, aws_tags|
           aws_tags.each do |tag|
@@ -119,13 +126,14 @@ module Hocho
 
         ec2_attribute = instance.to_h
         vpc_attribute = vpc.to_h
-        [ec2_attribute, vpc_attribute].each do |attrs|
+        subnet_attribute = subnet.to_h
+        [ec2_attribute, vpc_attribute, subnet_attribute].each do |attrs|
           attrs[:tags] = attrs.fetch(:tags, []).map { |_| [_.fetch(:key), _.fetch(:value)] }.to_h
         end
 
         properties = {
           run_list: runlist_template.new(instance, vpc).result(),
-          attributes: {hocho_ec2: ec2_attribute, hocho_vpc: vpc_attribute,},
+          attributes: {hocho_ec2: ec2_attribute, hocho_vpc: vpc_attribute, hocho_subnet: subnet_attribute,},
         }
         {
           name: hostname_template.new(instance, vpc).result(),
