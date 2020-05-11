@@ -1,28 +1,40 @@
-# Hocho::Ec2
+# hocho-ec2: Host inventory for Amazon EC2
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/hocho/ec2`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+This is a [sorah/hocho](https://github.com/sorah/hocho) inventory provider plugin that retrieves EC2 instance information as host data.
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add this line to your Gemfile:
 
 ```ruby
 gem 'hocho-ec2'
 ```
 
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install hocho-ec2
-
 ## Usage
 
-TODO: Write usage instructions here
+```yaml
+# hocho.yml
+inventory_providers:
+  - ec2:
+      ## AWS Region
+      region: ap-northeast-1
+      ## ec2:DescribeInstances API filters
+      filters:
+        - name: instance-state-name
+          values: ['running']
+      ## ERB Template for host.name. You can use `tag(instance, "NAME")` and `tag(vpc, "NAME")` helper.
+      hostname_template: '<%= tag(instance, "Name") %>.<%= tag(vpc, "Name") %>.compute.nkmi.me'
+      ## Template - Ruby script for host.properties.template. Expected to return an Array.
+      runlist_template: '%w(site.rb entry_ec2.rb entry_ec2_role.rb)'
+      ## Cache the result for specified duration.
+      cache_path: tmp/hocho-ec2-cache.apne1.yml
+      cache_duration: 3600
+
+  ## You can add multiple instnaces of a provider to cover more regions:
+  # - ec2:
+  #     region: us-west-2
+  #     ...
+```
 
 ## Development
 
