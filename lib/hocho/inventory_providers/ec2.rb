@@ -8,6 +8,20 @@ require 'aws-sdk-ec2'
 module Hocho
   module InventoryProviders
     class Ec2 < Base
+      CACHE_PERMITTED_CLASSES = [
+        TrueClass,
+        FalseClass,
+        NilClass,
+        Integer,
+        Float,
+        String,
+        Array,
+        Hash,
+        Time,
+        Symbol,
+        Aws::EC2::Types::IamInstanceProfile,
+      ]
+
       module TemplateHelper
         def tag(source, name, default = nil)
           t = source.tags.find{ |_| _.key == name }
@@ -84,7 +98,7 @@ module Hocho
       def cache!
         return yield unless cache_enabled?
         if ::File.exist?(cache_path)
-          @cache = YAML.load_file(cache_path)
+          @cache = YAML.load_file(cache_path, permitted_classes: CACHE_PERMITTED_CLASSES)
         end
         @cache = nil if !@cache&.key?(:ts) || (Time.now - @cache[:ts]) > cache_duration
         @cache = nil if cache_version && @cache[:user_version] != cache_version
